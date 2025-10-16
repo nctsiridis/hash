@@ -1,4 +1,5 @@
 #include "../map_unordered.h"
+#include <stdio.h>
 
 int main() {
 	MapUnordered *mp = map_unordered_new(1, 1, 3, 5, &byte_hash);

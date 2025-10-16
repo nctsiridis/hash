@@ -1,3 +1,11 @@
+example_two_sum: \
+		examples/two_sum.c \
+		init \
+		map_unordered \
+		build/map_unordered.o
+	cc examples/two_sum.c build/map_unordered.o -o build/two_sum
+	./build/two_sum
+
 example_struct: \
 		examples/map_unordered_with_struct.c \
 		init \

@@ -1,26 +1,23 @@
 #ifndef MAP_UNORDERED
 #define MAP_UNORDERED
 
-#include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
-typedef struct Pair {
+typedef struct MapPair {
 	void *key, *val;
-} Pair;
+} MapPair;
 
 typedef struct MapUnordered {
 	int size, array_size;
 	int key_size, val_size;
 	int max_probe_dist;
-	Pair *entries;
+	MapPair *entries;
 	int (*hash)(void*, int, int);
 } MapUnordered;
 
 int byte_hash(void* key, int key_size, int array_size);
-void debug_map_unordered_print(MapUnordered *mp);
 MapUnordered* map_unordered_new(
 	int key_size, 
 	int val_size, 

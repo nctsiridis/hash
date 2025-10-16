@@ -1,5 +1,7 @@
 #include "map_unordered.h"
 
+#include <stdio.h> // debug TODO remove
+
 int probe_key(MapUnordered *mp, int h, void* key) {
 	for (int i = 0; i < mp->max_probe_dist; i++) {
 		if (!mp->entries[h].key) continue;
@@ -29,17 +31,6 @@ int byte_hash(void* key, int key_size, int array_size) {
 	return abs(hash) % array_size;
 }
 
-void debug_map_unordered_print(MapUnordered *mp) {
-	for (int i = 0; i < mp->array_size; i++) {
-		if (mp->entries[i].key) {
-			printf("(%c %c), ", *(char*)mp->entries[i].key, *(char*)mp->entries[i].val);
-		} else {
-			printf("NULL, ");
-		}
-	}
-	printf("\n");
-}
-
 MapUnordered* map_unordered_new(
 	int key_size, 
 	int val_size, 
@@ -53,7 +44,7 @@ MapUnordered* map_unordered_new(
 	res->val_size = val_size;
 	res->max_probe_dist = max_probe_dist;
 	res->size = 0;
-	res->entries = malloc(sizeof(Pair) * init_size);
+	res->entries = malloc(sizeof(MapPair) * init_size);
 	for (int i = 0; i < init_size; i++) {
 		res->entries[i].key = NULL;
 		res->entries[i].val = NULL;
@@ -75,7 +66,7 @@ void map_unordered_free_entries(MapUnordered *mp) {
 }
 
 void map_unordered_expand(MapUnordered *mp) {
-	Pair *temp_entries = malloc(sizeof(Pair) * mp->size);
+	MapPair *temp_entries = malloc(sizeof(MapPair) * mp->size);
 	int index = 0, temp_index = 0;
 	int size = mp->size;
 	while (size--) {
@@ -89,7 +80,7 @@ void map_unordered_expand(MapUnordered *mp) {
 	}
 	map_unordered_free_entries(mp);
 	mp->array_size *= 2;
-	mp->entries = malloc(sizeof(Pair) * mp->array_size);
+	mp->entries = malloc(sizeof(MapPair) * mp->array_size);
 	for (int i = 0; i < mp->array_size; i++) {
 		mp->entries[i].key = NULL;
 		mp->entries[i].val = NULL;
