@@ -22,7 +22,19 @@ typedef struct MapUnordered {
 
 int byte_hash(void* key, int array_size) {
 	// TODO, generic hash function for all structs (not efficient)
+	// learn about hash functions before we do this
 	return 0;
+}
+
+void debug_map_unordered_print(MapUnordered *mp) {
+	for (int i = 0; i < mp->array_size; i++) {
+		if (mp->entries[i].key) {
+			printf("(%c %c), ", *(char*)mp->entries[i].key, *(char*)mp->entries[i].val);
+		} else {
+			printf("NULL, ");
+		}
+	}
+	printf("\n");
 }
 
 MapUnordered* map_unordered_new(
@@ -61,7 +73,8 @@ void map_unordered_free_entries(MapUnordered *mp) {
 
 int probe_key(MapUnordered *mp, int h, void* key) {
 	for (int i = 0; i < mp->max_probe_dist; i++) {
-		if (memcmp(mp->entries[h + i].key, key, mp->key_size) == 0) return h;
+		if (!mp->entries[h].key) continue;
+		if (memcmp(mp->entries[h].key, key, mp->key_size) == 0) return h;
 		h = (h + 1) % mp->array_size;
 	}
 	return -1;
@@ -71,7 +84,7 @@ int probe_key_or_empty(MapUnordered *mp, int h, void* key) {
 	for (int i = 0; i < mp->max_probe_dist; i++) {
 		if (
 			!mp->entries[h].key || 
-			memcmp(mp->entries[h + i].key, key, mp->key_size) == 0
+			memcmp(mp->entries[h].key, key, mp->key_size) == 0
 		) return h;
 		h = (h + 1) % mp->array_size;
 	}
@@ -80,7 +93,6 @@ int probe_key_or_empty(MapUnordered *mp, int h, void* key) {
 
 void map_unordered_insert(MapUnordered *mp, void *key, void *val); // TODO remove
 void map_unordered_expand(MapUnordered *mp) {
-	int new_array_size = mp->array_size * 2;
 	Pair *temp_entries = malloc(sizeof(Pair) * mp->size);
 	int index = 0, temp_index = 0;
 	int size = mp->size;
@@ -94,15 +106,16 @@ void map_unordered_expand(MapUnordered *mp) {
 		index++;
 	}
 	map_unordered_free_entries(mp);
-	mp->entries = malloc(sizeof(Pair) * new_array_size);
-	for (int i = 0; i < new_array_size; i++) {
+	mp->array_size *= 2;
+	mp->entries = malloc(sizeof(Pair) * mp->array_size);
+	for (int i = 0; i < mp->array_size; i++) {
 		mp->entries[i].key = NULL;
 		mp->entries[i].val = NULL;
 	}
 	for (int i = 0; i < mp->size; i++) {
-		map_unordered_insert(mp, &temp_entries[i].key, &temp_entries[i].val);
+		map_unordered_insert(mp, temp_entries[i].key, temp_entries[i].val);
+		mp->size--; // Kinda hacky
 	}
-	mp->array_size = new_array_size;
 }
 
 void map_unordered_insert(MapUnordered *mp, void *key, void *val) {
@@ -110,30 +123,36 @@ void map_unordered_insert(MapUnordered *mp, void *key, void *val) {
 	while (tries--) {
 		int h = mp->hash(key, mp->array_size);
 		int index = probe_key_or_empty(mp, h, key);
-		if (index == -1) {
+		if (index < 0) {
 			map_unordered_expand(mp);
 			continue;
+		} else {
+			mp->size++;
 		}
-		if(!mp->entries[h].key) mp->entries[h].key = malloc(mp->key_size);
-		if(!mp->entries[h].val) mp->entries[h].val = malloc(mp->val_size);
-		memcpy(mp->entries[h].key, key, mp->key_size);
-		memcpy(mp->entries[h].val, val, mp->val_size);
-		mp->size++;
+		if(!mp->entries[index].key) mp->entries[index].key = malloc(mp->key_size);
+		if(!mp->entries[index].val) mp->entries[index].val = malloc(mp->val_size);
+		memcpy(mp->entries[index].key, key, mp->key_size);
+		memcpy(mp->entries[index].val, val, mp->val_size);
+		break;
 	}
 }
 
-void map_unordered_delete(MapUnordered *mp, void*key) {
+void map_unordered_erase(MapUnordered *mp, void*key) {
 	int h = mp->hash(key, mp->array_size);
 	int index = probe_key(mp, h, key);
 	if (index >= 0) {
+		free(mp->entries[index].key);
+		free(mp->entries[index].val);
 		mp->entries[index].key = NULL;
 		mp->entries[index].val = NULL;
+		mp->size--;
 	}
 }
 
 void* map_unordered_get(MapUnordered *mp, void *key) {
 	int h = mp->hash(key, mp->array_size);
-	return mp->entries[h].val;
+	int index = probe_key(mp, h, key);
+	return (index >= 0) ? mp->entries[index].val : NULL;
 }
 
 int example_hash(void* key_ref, int array_size) {
@@ -143,15 +162,24 @@ int example_hash(void* key_ref, int array_size) {
 }
 
 int main() {
-	MapUnordered *mp = map_unordered_new(1, 1, 10, 5, &example_hash);
-	char key = 'a';
-	char val = 'b';
-	map_unordered_insert(mp, &key, &val);
-	void* res = map_unordered_get(mp, &key);
-	printf("Res: %c\n", *(char*)res);
-	val = 'z';
-	map_unordered_insert(mp, &key, &val);
-	res = map_unordered_get(mp, &key);
-	printf("Res: %c\n", *(char*)res);
+	MapUnordered *mp = map_unordered_new(1, 1, 3, 5, &example_hash);
+	for (char key = 'a'; key <= 'i'; key++) {
+		char val = key + 1;
+		printf("Inserting %c->%c\n", key, val);
+		map_unordered_insert(mp, &key, &val);
+	}
+	for (char key = 'a'; key <= 'i'; key++) {
+		char* val_ref = map_unordered_get(mp, &key);
+		printf("Got %c->%c\n", key, *val_ref);
+	}
+	for (char key = 'a'; key <= 'i'; key += 2) {
+		printf("Erasing %c\n", key);
+		map_unordered_erase(mp, &key);
+	}
+	for (char key = 'a'; key <= 'i'; key++) {
+		char* val_ref = map_unordered_get(mp, &key);
+		if (val_ref) printf("Got %c->%c\n", key, *val_ref);
+		else printf("Got %c->NULL\n", key);
+	}
 	return 0;
 }
