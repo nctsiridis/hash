@@ -1,29 +1,32 @@
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
+#include "map_unordered.h"
 
-// what tf we wanna do
+int probe_key(MapUnordered *mp, int h, void* key) {
+	for (int i = 0; i < mp->max_probe_dist; i++) {
+		if (!mp->entries[h].key) continue;
+		if (memcmp(mp->entries[h].key, key, mp->key_size) == 0) return h;
+		h = (h + 1) % mp->array_size;
+	}
+	return -1;
+}
 
-// struct -> struct hash
+int probe_key_or_empty(MapUnordered *mp, int h, void* key) {
+	for (int i = 0; i < mp->max_probe_dist; i++) {
+		if (
+			!mp->entries[h].key || 
+			memcmp(mp->entries[h].key, key, mp->key_size) == 0
+		) return h;
+		h = (h + 1) % mp->array_size;
+	}
+	return -1;
+}
 
-typedef struct Pair {
-	void *key, *val;
-} Pair;
-
-typedef struct MapUnordered {
-	int size, array_size;
-	int key_size, val_size;
-	int max_probe_dist;
-	Pair *entries;
-	int (*hash)(void*, int);
-} MapUnordered;
-
-int byte_hash(void* key, int array_size) {
-	// TODO, generic hash function for all structs (not efficient)
-	// learn about hash functions before we do this
-	return 0;
+int byte_hash(void* key, int key_size, int array_size) {
+	unsigned char *bytes = (unsigned char*) key;
+	int hash = 0;
+	for (int i = 0; i < key_size; i++){
+		hash = (int)bytes[i] + (hash << 6) + (hash << 16) - hash;
+	}
+	return abs(hash) % array_size;
 }
 
 void debug_map_unordered_print(MapUnordered *mp) {
@@ -42,7 +45,7 @@ MapUnordered* map_unordered_new(
 	int val_size, 
 	int init_size, 
 	int max_probe_dist,
-	int (*hash)(void*, int)
+	int (*hash)(void*, int, int)
 ) {
 	MapUnordered *res = malloc(sizeof(MapUnordered));
 	res->array_size = init_size;
@@ -71,27 +74,6 @@ void map_unordered_free_entries(MapUnordered *mp) {
 	mp->entries = NULL;
 }
 
-int probe_key(MapUnordered *mp, int h, void* key) {
-	for (int i = 0; i < mp->max_probe_dist; i++) {
-		if (!mp->entries[h].key) continue;
-		if (memcmp(mp->entries[h].key, key, mp->key_size) == 0) return h;
-		h = (h + 1) % mp->array_size;
-	}
-	return -1;
-}
-
-int probe_key_or_empty(MapUnordered *mp, int h, void* key) {
-	for (int i = 0; i < mp->max_probe_dist; i++) {
-		if (
-			!mp->entries[h].key || 
-			memcmp(mp->entries[h].key, key, mp->key_size) == 0
-		) return h;
-		h = (h + 1) % mp->array_size;
-	}
-	return -1;
-}
-
-void map_unordered_insert(MapUnordered *mp, void *key, void *val); // TODO remove
 void map_unordered_expand(MapUnordered *mp) {
 	Pair *temp_entries = malloc(sizeof(Pair) * mp->size);
 	int index = 0, temp_index = 0;
@@ -121,7 +103,7 @@ void map_unordered_expand(MapUnordered *mp) {
 void map_unordered_insert(MapUnordered *mp, void *key, void *val) {
 	int tries = 10;
 	while (tries--) {
-		int h = mp->hash(key, mp->array_size);
+		int h = mp->hash(key, mp->key_size, mp->array_size);
 		int index = probe_key_or_empty(mp, h, key);
 		if (index < 0) {
 			map_unordered_expand(mp);
@@ -138,7 +120,7 @@ void map_unordered_insert(MapUnordered *mp, void *key, void *val) {
 }
 
 void map_unordered_erase(MapUnordered *mp, void*key) {
-	int h = mp->hash(key, mp->array_size);
+	int h = mp->hash(key, mp->key_size, mp->array_size);
 	int index = probe_key(mp, h, key);
 	if (index >= 0) {
 		free(mp->entries[index].key);
@@ -150,36 +132,7 @@ void map_unordered_erase(MapUnordered *mp, void*key) {
 }
 
 void* map_unordered_get(MapUnordered *mp, void *key) {
-	int h = mp->hash(key, mp->array_size);
+	int h = mp->hash(key, mp->key_size, mp->array_size);
 	int index = probe_key(mp, h, key);
 	return (index >= 0) ? mp->entries[index].val : NULL;
-}
-
-int example_hash(void* key_ref, int array_size) {
-	// cast key
-	char *key = (char*)key_ref;
-	return abs(*key << 1) % array_size;
-}
-
-int main() {
-	MapUnordered *mp = map_unordered_new(1, 1, 3, 5, &example_hash);
-	for (char key = 'a'; key <= 'i'; key++) {
-		char val = key + 1;
-		printf("Inserting %c->%c\n", key, val);
-		map_unordered_insert(mp, &key, &val);
-	}
-	for (char key = 'a'; key <= 'i'; key++) {
-		char* val_ref = map_unordered_get(mp, &key);
-		printf("Got %c->%c\n", key, *val_ref);
-	}
-	for (char key = 'a'; key <= 'i'; key += 2) {
-		printf("Erasing %c\n", key);
-		map_unordered_erase(mp, &key);
-	}
-	for (char key = 'a'; key <= 'i'; key++) {
-		char* val_ref = map_unordered_get(mp, &key);
-		if (val_ref) printf("Got %c->%c\n", key, *val_ref);
-		else printf("Got %c->NULL\n", key);
-	}
-	return 0;
 }
