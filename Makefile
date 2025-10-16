@@ -1,9 +1,14 @@
+DAROOT = /users/nicotsiridis/daroot
+HII_PATH = $(DAROOT)/github~nctsiridis/hii@v1.0.0
+CFLAGS = -I$(HII_PATH)
+
 example_two_sum: \
+		darman \
 		examples/two_sum.c \
 		init \
 		map_unordered \
 		build/map_unordered.o
-	cc examples/two_sum.c build/map_unordered.o -o build/two_sum
+	cc examples/two_sum.c $(CFLAGS) build/hii.o build/map_unordered.o -o build/two_sum
 	./build/two_sum
 
 example_struct: \
@@ -25,3 +30,6 @@ init:
 
 map_unordered: map_unordered.c map_unordered.h
 	cc -c map_unordered.c -o build/map_unordered.o
+
+darman:
+	$(CC) $(CFLAGS) -c $(HII_PATH)/hash.c -o build/hii.o
