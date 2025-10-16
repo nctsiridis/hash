@@ -1,7 +1,5 @@
 #include "map_unordered.h"
 
-#include <stdio.h> // debug TODO remove
-
 int probe_key(MapUnordered *mp, int h, void* key) {
 	for (int i = 0; i < mp->max_probe_dist; i++) {
 		if (!mp->entries[h].key) continue;
@@ -70,7 +68,7 @@ void map_unordered_expand(MapUnordered *mp) {
 	int index = 0, temp_index = 0;
 	int size = mp->size;
 	while (size--) {
-		while (mp->entries[index].val == NULL) index++;
+		while (mp->entries[index].val == NULL) index = (index + 1) % mp->array_size;
 		temp_entries[temp_index].key = malloc(mp->key_size);
 		temp_entries[temp_index].val = malloc(mp->val_size);
 		memcpy(temp_entries[temp_index].key, mp->entries[index].key, mp->key_size);

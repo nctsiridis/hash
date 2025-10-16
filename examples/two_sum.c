@@ -23,22 +23,18 @@ Pair n2solution(IntArray *arr, int k) {
 }
 
 Pair two_sum(IntArray *arr, int k) {
-	printf("initializing\n");
+	int size = 0;
 	MapUnordered *mp = map_unordered_new(sizeof(int), sizeof(int), 100, 5, &byte_hash);
-	printf("initialized\n");
 	for (int i = 0; i < arr->size; i++) {
 		int x = arr->data[i];
-		printf("Fetching\n");
 		void *index_ref = map_unordered_get(mp, &x);
-		printf("Fetched\n");
 		if (index_ref) {
 			int index_match = *(int*)index_ref;
 			return (Pair) {index_match, i};
 		} else {
 			int complement = k - x;
-			printf("Setting %d -> %d\n", complement, i);
 			map_unordered_insert(mp, &complement, &i);
-			printf("Set\n");
+			size++; // DEBUG
 		}
 	}
 	return (Pair) {-1, -1};
